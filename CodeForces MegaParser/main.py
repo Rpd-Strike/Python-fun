@@ -1,4 +1,4 @@
-import urllib.request
+import urllib.request, urllib.parse
 import json, threading
 import os, time, datetime
 from submission_getter import submission_code
@@ -6,12 +6,13 @@ from submission_getter import submission_code
 MAX_PROBLEM_SUBS = 1000 * 1000 * 10
 MAX_THREADS = 5
 BASE_DIR = 'Surse'
-URL_CONTEST_SUBMISSION = 'https://codeforces.com/api/contest.status?contestId={contestId}'
+URL_CONTEST_SUBMISSION = 'http://codeforces.com/api/contest.status?contestId={contestId}'
 
 thread_count = 0
 
 def submissions_from_contest(contestId):
   url = URL_CONTEST_SUBMISSION.format(contestId=contestId)
+  # url = urllib.parse.quote(url)
   submissions = json.loads(urllib.request.urlopen(url).read())
   return submissions['result']
 
@@ -75,9 +76,6 @@ def save_contest(contestId):
 
 def thread_version():
   global thread_count
-  new_directory = BASE_DIR
-  if not os.path.exists(new_directory):
-      os.makedirs(new_directory)
       
   contest_list = [i + 1 for i in range(1191)]
   
@@ -108,6 +106,10 @@ def simple_version():
 
 
 def main():
+  new_directory = BASE_DIR
+  if not os.path.exists(new_directory):
+      os.makedirs(new_directory)
+      
   simple_version()
 
 
