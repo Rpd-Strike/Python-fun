@@ -1,11 +1,14 @@
 import urllib.request
-import json
-import os, time
+import json, threading
+import os, time, datetime
 from submission_getter import submission_code
 
-MAX_PROBLEM_SUBS = 1000 * 1000
+MAX_PROBLEM_SUBS = 1000 * 1000 * 10
+MAX_THREADS = 5
 BASE_DIR = 'Surse'
 URL_CONTEST_SUBMISSION = 'https://codeforces.com/api/contest.status?contestId={contestId}'
+
+thread_count = 0
 
 def submissions_from_contest(contestId):
   url = URL_CONTEST_SUBMISSION.format(contestId=contestId)
@@ -18,19 +21,28 @@ def save_progress(sources, contestId):
     json.dump(data, file_obj, indent = 2)
 
 def save_contest(contestId):
-  submissions = submissions_from_contest(contestId)
-  print( 'contest: ' + str(contestId) + ' has ' + str(len(submissions)) + ' submissions' )
+  global thread_count, MAX_PROBLEM_SUBS, BASE_DIR, URL_CONTEST_SUBMISSION
 
-  sources, count = {}, 0
+  print('Thread ' + str(contestId) + ' started')
+  thread_start_time = time.time()
+
+  submissions = submissions_from_contest(contestId)
+  print( 'Contest: ' + str(contestId) + ' has ' + str(len(submissions)) + ' submissions' )
+
+  sources, count, subs_checked = {}, 0, 0
+  submissions = sorted(submissions, key = lambda k: k['id'])
   for sub in submissions:
+    subs_checked = subs_checked + 1
+
     if sub['verdict'] != 'OK':
       continue
-    
+
     count = count + 1
     if count > MAX_PROBLEM_SUBS:
+      print('Thread ' + str(contestId) + ' reached maximum problem submissions')
       break
     
-    print('remaining: ' + str(len(submissions) - count + 1))
+    percentage = subs_checked / len(submissions) * 100
 
     prob_id = sub['problem']['index']
     sub_id = str(sub['id'])
@@ -38,24 +50,14 @@ def save_contest(contestId):
       sources[ prob_id ] = {}
     
     code, ext = 'nothing', 'no-ext'
-    
-    waited_a_lot = False
+
     while True:
       try:
         code, ext = submission_code(sub)
         break
-      except Exception as e:
-        print(e)
-        if not waited_a_lot:
-          print("wwaiting 3 minutes")
-          time.sleep(60)
-          print("2 minutes left")
-          time.sleep(60)
-          print("1 minute left")
-          time.sleep(60)
-          waited_a_lot = True
-        else:
-          time.sleep(4)
+      except Exception:
+        print('Thread ' + str(contestId) + ' has Exception, waiting')
+        time.sleep(4)
     
     sources[ prob_id ][ sub_id ] = {
       'code': code,
@@ -64,22 +66,49 @@ def save_contest(contestId):
 
     if count % 10 == 0:
       save_progress(sources, contestId)
-      time.sleep(2)
-      print('Progress saved! ' + str(count) + ' submissions!')
-      
+      print("\nSaved contest {}: {}/{}  {:.2f}%  saved: {}  time: "\
+        .format(contestId, subs_checked, len(submissions), percentage, count) + \
+        time.strftime("%H:%M:%S", time.gmtime(time.time() - thread_start_time)) + "\n")
 
-# def print_content():
-#   with open(BASE_DIR + '/' + '1192C', 'r') as f:
-#     sources = json.loads(f.read())
-#     print(sources['58163928']['code'])
+  thread_count = thread_count - 1
+  print('Thread ' + str(contestId) + ' finished')
 
-
-def main():
+def thread_version():
+  global thread_count
   new_directory = BASE_DIR
   if not os.path.exists(new_directory):
       os.makedirs(new_directory)
       
-  save_contest(1191)
+  contest_list = [i + 1 for i in range(1191)]
+  
+  thread_count = 0
+  t_list = []
+  while len(contest_list) > 0:
+    print('thread count: ' + str(thread_count))
+
+    if thread_count < MAX_THREADS:
+      thread_count = thread_count + 1
+      th = threading.Thread(target=save_contest, args=(contest_list[-1],))
+      t_list.append(th)
+      contest_list = contest_list[:-1]
+      th.start()
+    else:
+      for th in t_list:
+        th.join()
+
+    time.sleep(1)
+  
+  print('All work finished! WOW')
+
+def simple_version():
+  print('type contestID:')
+  contestID = int(input())
+  save_contest(contestID)
+
+
+
+def main():
+  simple_version()
 
 
 if __name__ == "__main__":

@@ -35,12 +35,12 @@ def submission_code(submission):
     prob_name, prob_id = submission['problem']['name'], submission['problem']['index']
     comp_lang = submission['programmingLanguage']
     submission_full_url = SUBMISSION_URL.format(ContestId=con_id, SubmissionId=sub_id)
-    print ('%s , Fetching submission: %s' % (str(con_id) + ' ' + prob_id, submission_full_url))
+    print ('%s, Fetching submission: %s' % (str(con_id) + ' ' + prob_id, submission_full_url))
     submission_info = urllib.request.urlopen(submission_full_url).read()
     soup = BeautifulSoup(submission_info, 'html.parser')
     submission_text = soup.find('pre', id='program-source-text')
     if submission_text is None:
-        print ('Could not fectch solution %d', sub_id)
+        # print ('Could not fectch solution', sub_id)
         return None
     result = submission_text.text.replace('\r', '')
     ext = get_ext(comp_lang)
